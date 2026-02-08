@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 import requests
 import base64
 import json
@@ -12,21 +11,9 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 import re
 
 # ==================== CONFIGURATION ====================
-GROQ_API_KEY = (
-    os.getenv("GROQ_API_KEY")
-    or st.secrets.get("GROQ_API_KEY", None)
-)
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 # ======================================================
-
-if not GROQ_API_KEY:
-    st.error(
-        "GROQ_API_KEY is not set.\n\n"
-        "Add it in Streamlit Secrets (Cloud) or as an environment variable (local)."
-    )
-    st.stop()
-
 
 st.set_page_config(
     page_title="Image to Word Converter",
@@ -37,10 +24,28 @@ st.set_page_config(
 st.title("📄 Image to Editable Word Converter")
 st.markdown("Upload document images and convert them into **fully editable Word files**")
 
+# ================= API KEY (FRONTEND ONLY) =============
+st.sidebar.header("🔐 API Configuration")
+
+GROQ_API_KEY = st.sidebar.text_input(
+    "Enter your Grok (Groq) API Key",
+    type="password",
+    placeholder="gsk_..."
+)
+
+if not GROQ_API_KEY:
+    st.warning("Please enter your Grok API key to continue.")
+    st.stop()
+
+st.sidebar.caption("API key is used only for this session and is not stored.")
+# ======================================================
+
+
 # ------------------------------------------------------
 def encode_image_to_base64(image_path):
     with open(image_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
+
 
 def get_image_type(image_path):
     ext = Path(image_path).suffix.lower()
@@ -50,6 +55,7 @@ def get_image_type(image_path):
         ".jpeg": "image/jpeg",
         ".webp": "image/webp"
     }.get(ext, "image/jpeg")
+
 
 # ------------------------------------------------------
 def extract_text_with_groq(image_path):
@@ -128,6 +134,7 @@ Return STRICT JSON in this format:
 
     return None
 
+
 # ------------------------------------------------------
 def create_docx(sections, output_path):
     doc = Document()
@@ -176,6 +183,7 @@ def create_docx(sections, output_path):
 
     doc.save(output_path)
 
+
 # ======================= UI ============================
 uploaded_files = st.file_uploader(
     "Upload document images",
@@ -191,7 +199,7 @@ if st.button("🚀 Convert to Word"):
     with tempfile.TemporaryDirectory() as tmp:
         all_sections = []
 
-        for idx, file in enumerate(uploaded_files):
+        for file in uploaded_files:
             img_path = Path(tmp) / file.name
             with open(img_path, "wb") as f:
                 f.write(file.getbuffer())
